@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowDown, ArrowUp, ChevronDown, Eye, LoaderCircle, Send, Upload, X } from 'lucide-react'
 import { api, post, type Plan, type PrintFile } from '../api'
+import { randomUUID } from '../uuid'
 import { ErrorNotification, PageHeader, Preview, useApp } from '../ui'
 
 interface Draft {
@@ -51,7 +52,7 @@ export default function Submit() {
   const storageKey = 'print-drafts-v1:' + user.id
   const navigate = useNavigate(), location = useLocation()
   const picker = useRef<HTMLInputElement>(null)
-  const visitId = useRef(crypto.randomUUID())
+  const visitId = useRef(randomUUID())
   const visit = useQuery({ queryKey: ['submit-visit', visitId.current], queryFn: () => post<{ visit_count: number; print_total_pages: number }>('/printing/visit', { visit_id: visitId.current }), staleTime: Infinity, refetchOnWindowFocus: false })
   const statistics = useQuery({ queryKey: ['submit-statistics'], queryFn: () => api<{ visit_count: number; print_total_pages: number }>('/printing/statistics'), enabled: !!visit.data, refetchInterval: 10000 })
   const totals = statistics.data ?? visit.data
@@ -74,7 +75,7 @@ export default function Submit() {
     let active = true
     api<{ file: PrintFile; plan: Plan; copies: number; parent_task_id: string }>('/tasks/' + taskId + '/resubmit-plan').then(data => {
       if (!active) return
-      setDrafts(values => [...values, { uid: crypto.randomUUID(), file: data.file, filename: data.file.filename, mode: 'custom', expression: data.plan.page_numbers.join(','), copies: data.copies, orientation: data.plan.orientation, scaling: data.plan.scaling, parent_task_id: data.parent_task_id }])
+      setDrafts(values => [...values, { uid: randomUUID(), file: data.file, filename: data.file.filename, mode: 'custom', expression: data.plan.page_numbers.join(','), copies: data.copies, orientation: data.plan.orientation, scaling: data.plan.scaling, parent_task_id: data.parent_task_id }])
       navigate('/submit', { replace: true, state: null })
     }).catch(error => { if (active) notify(error, true) })
     return () => { active = false }
@@ -82,7 +83,7 @@ export default function Submit() {
   async function addFiles(files: File[]) {
     if (!options.data) return
     if (drafts.length + files.length > options.data.max_batch_files) { notify('文件数量超过单批上限', true); return }
-    const added = files.map(file => ({ uid: crypto.randomUUID(), filename: file.name, uploading: true, mode: 'all', expression: '', copies: 1, orientation: 'portrait', scaling: 'actual' } as Draft))
+    const added = files.map(file => ({ uid: randomUUID(), filename: file.name, uploading: true, mode: 'all', expression: '', copies: 1, orientation: 'portrait', scaling: 'actual' } as Draft))
     setDrafts(values => [...values, ...added])
     let uploaded = 0
     for (let index = 0; index < files.length; index++) {
@@ -117,7 +118,7 @@ export default function Submit() {
     setBusy(true)
     const items = prepared.map(d => ({ plan_id: d.plan!.id, copies: d.copies, parent_task_id: d.parent_task_id ?? null }))
     const bodySignature = JSON.stringify(items)
-    if (retry.current?.signature !== bodySignature) retry.current = { signature: bodySignature, key: crypto.randomUUID() }
+    if (retry.current?.signature !== bodySignature) retry.current = { signature: bodySignature, key: randomUUID() }
     try {
       await post('/print-batches', { idempotency_key: retry.current.key, items })
       const remaining = drafts.length - prepared.length

@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $program = Join-Path $PSScriptRoot 'print-platform.exe'
 $manifestPath = Join-Path $PSScriptRoot 'var\processes.json'
 if (Test-Path -LiteralPath $manifestPath) {

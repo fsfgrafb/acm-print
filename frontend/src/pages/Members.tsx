@@ -5,6 +5,7 @@ import { api, patch, post, time } from '../api'
 import { Empty, ErrorNotification, Modal, PageHeader, useApp } from '../ui'
 import { validateContacts } from '../contacts'
 import { DateTimePicker } from '../DatePicker'
+import { randomUUID } from '../uuid'
 
 interface Member { id: string; student_id: string; email: string; phone: string; banned: boolean; admin: boolean; created_at: string; expires_at: string }
 interface ImportRow { line: number; student_id: string; status: string; reason: string }
@@ -45,7 +46,7 @@ export default function Members() {
   }
   return <><PageHeader title="用户管理" />
     <ErrorNotification error={members.error} />
-    <input ref={picker} type="file" accept=".csv" hidden onChange={async e => { const file = e.target.files?.[0]; e.target.value = ''; if (!file) return; setCsv(null); setRows([]); setBusy(true); try { const body = new FormData(); body.set('file', file); const result = await api<{ rows: ImportRow[] }>('/admin/import/preview', { method: 'POST', body }); setCsv(file); setRows(result.rows); commitKey.current = crypto.randomUUID() } catch (err) { notify(err as Error, true) } finally { setBusy(false) } }} />
+    <input ref={picker} type="file" accept=".csv" hidden onChange={async e => { const file = e.target.files?.[0]; e.target.value = ''; if (!file) return; setCsv(null); setRows([]); setBusy(true); try { const body = new FormData(); body.set('file', file); const result = await api<{ rows: ImportRow[] }>('/admin/import/preview', { method: 'POST', body }); setCsv(file); setRows(result.rows); commitKey.current = randomUUID() } catch (err) { notify(err as Error, true) } finally { setBusy(false) } }} />
     <Modal open={!!csv} close={closeImport} label="CSV 导入预览" className="panel import-modal">
       {csv && <>
         <div className="section-heading"><h2 title={csv.name}>导入预览 · {csv.name}</h2>

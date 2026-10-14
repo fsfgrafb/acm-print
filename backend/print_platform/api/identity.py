@@ -1,6 +1,3 @@
-import os
-import secrets
-
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, text
@@ -23,7 +20,6 @@ class Credentials(BaseModel):
 
 class Setup(BaseModel):
     student_id: str = Field(max_length=64)
-    setup_token: str = Field(default="", max_length=256)
 
 
 class PasswordChange(BaseModel):
@@ -49,14 +45,11 @@ class Profile(BaseModel):
 @router.get("/setup/status")
 def setup_status(db: Session = Depends(get_db)):
     state = db.get(SystemState, 1)
-    return {"initialized": state.initialized, "credential_required": True}
+    return {"initialized": state.initialized}
 
 
 @router.post("/setup")
 def setup(body: Setup, db: Session = Depends(get_db)):
-    expected = os.environ.get("PLATFORM_SETUP_TOKEN", "")
-    if not expected or not secrets.compare_digest(body.setup_token, expected):
-        raise AppError("setup_credential", "初始化凭证不正确", 403)
     state = db.scalar(select(SystemState).where(SystemState.id == 1).with_for_update())
     if state.initialized:
         raise AppError("already_initialized", "系统已初始化", 409)

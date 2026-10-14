@@ -29,12 +29,6 @@ if (-not $env:PLATFORM_DATABASE_URL) {
 $configPath = Join-Path $projectRoot 'config\platform.toml'
 if (-not (Test-Path -LiteralPath $configPath)) { Copy-Item -LiteralPath (Join-Path $projectRoot 'config\platform.example.toml') -Destination $configPath }
 if (-not $env:PLATFORM_CONFIG_FILE) { $env:PLATFORM_CONFIG_FILE = $configPath }
-$envPath = Join-Path $runtimeRoot 'dev-env.json'
-if (-not $env:PLATFORM_SETUP_TOKEN) {
-    if (Test-Path -LiteralPath $envPath) { $env:PLATFORM_SETUP_TOKEN = (Get-Content -LiteralPath $envPath -Raw | ConvertFrom-Json).setup_token }
-    else { $env:PLATFORM_SETUP_TOKEN = [guid]::NewGuid().ToString('N') }
-}
-@{ setup_token = $env:PLATFORM_SETUP_TOKEN } | ConvertTo-Json | Set-Content -LiteralPath $envPath -Encoding utf8
 Push-Location $projectRoot
 try {
     & $pythonPath -m print_platform.cli check-config
@@ -61,5 +55,5 @@ try {
     }
     @{ root = $projectRoot; processes = $entries.ToArray() } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $manifestPath -Encoding utf8
     Write-Host '开发环境：http://localhost:5173；API：http://127.0.0.1:8000/api/docs'
-    Write-Host '初始化凭证保存在 var/dev-env.json。默认禁用物理打印。'
+    Write-Host '默认禁用物理打印。'
 } finally { Pop-Location }

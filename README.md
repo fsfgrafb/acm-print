@@ -50,12 +50,11 @@ Copy-Item config/platform.example.toml config/platform.toml
 
 ```powershell
 $env:PLATFORM_DATABASE_URL = 'postgresql+psycopg://platform:your-password@127.0.0.1:5432/platform'
-$env:PLATFORM_SETUP_TOKEN = '部署者设置的随机初始化凭证'
 .\.venv\Scripts\python.exe -m print_platform.cli migrate
 .\scripts\start-dev.ps1
 ```
 
-开发页使用 `http://localhost:5173`，Vite 代理 `/api` 到本机 8000 端口。首次页面输入管理员身份和初始化凭证；初始密码等于身份标识。当前工作目录另有用于联调的便携 PostgreSQL 运行时，位于忽略目录 `var/dev-postgres`，仅监听 `127.0.0.1:55432`，使用独立 `platform_dev` 数据库；没有安装系统服务，不能当作生产数据库配置。当前机器未设置数据库 URL 时，启动脚本可使用它。初始化凭证保存在本地 `var/dev-env.json`。
+开发页使用 `http://localhost:5173`，Vite 代理 `/api` 到本机 8000 端口。首次页面填写首任管理员学号；初始密码等于学号。当前工作目录另有用于联调的便携 PostgreSQL 运行时，位于忽略目录 `var/dev-postgres`，仅监听 `127.0.0.1:55432`，使用独立 `platform_dev` 数据库；没有安装系统服务，不能当作生产数据库配置。当前机器未设置数据库 URL 时，启动脚本可使用它。
 
 ```powershell
 .\scripts\stop-dev.ps1                 # 停止 API、前端与 worker

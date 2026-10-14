@@ -24,7 +24,6 @@ path.write_text(
     encoding="utf-8",
 )
 os.environ["PLATFORM_CONFIG_FILE"] = str(path)
-os.environ["PLATFORM_SETUP_TOKEN"] = "local-smoke-only"
 migrate()
 origin = {"Origin": "http://localhost:5173"}
 admin, member = TestClient(app, headers=origin), TestClient(app, headers=origin)
@@ -48,8 +47,8 @@ def sign_in(client, identity):
 
 assert not expect(admin.get("/api/setup/status"))["initialized"], "Use a fresh *_smoke database"
 expect(admin.get("/api/public/branding"))
-expect(admin.post("/api/setup", json={"student_id": "0001", "setup_token": "local-smoke-only"}))
-expect(admin.post("/api/setup", json={"student_id": "0002", "setup_token": "local-smoke-only"}), 409)
+expect(admin.post("/api/setup", json={"student_id": "0001"}))
+expect(admin.post("/api/setup", json={"student_id": "0002"}), 409)
 sign_in(admin, "0001")
 csv = b"student_id,email,phone\n0002,,\n0002,,\n0003,,\n"
 preview = expect(admin.post("/api/admin/import/preview", files={"file": ("members.csv", csv)}))

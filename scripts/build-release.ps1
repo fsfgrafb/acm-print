@@ -33,8 +33,10 @@ $example = Get-Content -LiteralPath (Join-Path $projectRoot 'config\platform.exa
 $example.Replace('http://localhost:5173', 'http://localhost') | Set-Content -LiteralPath (Join-Path $stage 'config\platform.example.toml') -Encoding utf8NoBOM
 Copy-Item -LiteralPath (Join-Path $projectRoot '.env.example') -Destination $stage
 Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\release.md') -Destination (Join-Path $stage 'README.md')
-Copy-Item -LiteralPath (Join-Path $projectRoot 'scripts\release\start.ps1') -Destination $stage
-Copy-Item -LiteralPath (Join-Path $projectRoot 'scripts\release\stop.ps1') -Destination $stage
+foreach ($scriptName in @('start.ps1', 'stop.ps1')) {
+    $scriptText = [System.IO.File]::ReadAllText((Join-Path $projectRoot "scripts\release\$scriptName"), [System.Text.Encoding]::UTF8)
+    [System.IO.File]::WriteAllText((Join-Path $stage $scriptName), $scriptText, [System.Text.UTF8Encoding]::new($true))
+}
 $Version | Set-Content -LiteralPath (Join-Path $stage 'VERSION') -Encoding ascii
 # Verify the actual frozen program and its runtime data before publishing.
 $previousConfig = $env:PLATFORM_CONFIG_FILE

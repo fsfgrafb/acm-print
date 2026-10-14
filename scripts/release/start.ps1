@@ -1,4 +1,4 @@
-param([ValidateRange(1, 65535)][int]$Port = 80)
+﻿param([ValidateRange(1, 65535)][int]$Port = 80)
 $ErrorActionPreference = 'Stop'
 $bundleRoot = $PSScriptRoot
 $program = Join-Path $bundleRoot 'print-platform.exe'

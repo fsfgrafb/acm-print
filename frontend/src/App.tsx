@@ -76,10 +76,10 @@ function Access({ branding, initialized, onLogin, onSetup }: { branding: Brandin
   return <div className="access"><section className="access-form"><div><img className="access-logo" src={branding.logo_url} alt={branding.organization_name} /><h2>{branding.platform_name}</h2>
       <form onSubmit={async e => { e.preventDefault(); setBusy(true); const data = new FormData(e.currentTarget)
         try { if (initialized) onLogin(await post<User>('/auth/login', { student_id: data.get('identity'), password: data.get('password') }))
-          else { await post('/setup', { student_id: data.get('identity'), setup_token: data.get('token') }); onSetup() } }
+          else { await post('/setup', { student_id: data.get('identity') }); onSetup() } }
         catch (err) { notify(err as Error, true) } finally { setBusy(false) }
       }}><label>{initialized ? '' : '首任管理员'}{branding.identity_label}<input name="identity" required maxLength={64} autoComplete="username" placeholder={'请输入' + branding.identity_label} /></label>
-        {initialized ? <label>密码<input name="password" type="password" required maxLength={128} autoComplete="current-password" placeholder="请输入密码" /></label> : <label>初始化凭证<input name="token" type="password" required autoComplete="off" placeholder="部署时设置的一次性凭证" /></label>}
+        {initialized && <label>密码<input name="password" type="password" required maxLength={128} autoComplete="current-password" placeholder="请输入密码" /></label>}
         <button className="button button-primary" disabled={busy}>{busy ? '请稍候…' : initialized ? '登录' : '创建管理员'}</button>
       </form>
     </div></section></div>
