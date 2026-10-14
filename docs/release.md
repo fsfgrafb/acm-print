@@ -14,7 +14,11 @@ $env:PLATFORM_DATABASE_URL = 'postgresql+psycopg://platform:your-password@127.0.
 
 3. 打开 `http://localhost`，填写首任管理员学号，初始密码等于学号，首次登录后修改密码。后续重启沿用同一个数据库和 `var/storage`。需要自定义端口时使用 `.\start.ps1 -Port 8080`。
 
-停止：`.\stop.ps1`。日志和进程记录位于 `var`。API、转换、打印、维护分别是独立进程。
+首次成功执行 `.\start.ps1` 后，会使用 Windows DPAPI 加密保存数据库连接到 `var/database.dpapi`，保存端口并注册当前用户的登录自启。之后同一 Windows 用户直接执行 `.\start.ps1` 即可恢复服务，无需重新输入数据库密码。设置新的 `PLATFORM_DATABASE_URL` 可更新保存的连接。自启等待数据库启动，失败会重试。
+
+停止：`.\stop.ps1`，同时关闭自启，但保留加密连接。再次执行 `.\start.ps1` 会重新启用自启。日志和进程记录位于 `var`。API、转换、打印、维护分别是独立进程。
+
+自启在开机登录该 Windows 用户后执行，以便打印驱动使用交互会话；未登录时不会运行。加密连接绑定当前 Windows 用户和机器，迁移到其他机器或用户时需重新设置数据库连接。升级应保留原安装路径。
 
 也可以单独启动或运行部署命令：
 
