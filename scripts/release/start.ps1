@@ -1,4 +1,4 @@
-param([ValidateRange(1, 65535)][int]$Port = 8000)
+param([ValidateRange(1, 65535)][int]$Port = 80)
 $ErrorActionPreference = 'Stop'
 $bundleRoot = $PSScriptRoot
 $program = Join-Path $bundleRoot 'print-platform.exe'
@@ -26,7 +26,7 @@ try {
     $entries = @()
     foreach ($role in @('serve', 'conversion', 'printing', 'maintenance')) {
         $roleArgs = @($role)
-        if ($role -eq 'serve') { $roleArgs += @('--host', '127.0.0.1', '--port', $Port) }
+        if ($role -eq 'serve') { $roleArgs += @('--host', '0.0.0.0', '--port', $Port) }
         $process = Start-Process -FilePath $program -ArgumentList $roleArgs -WorkingDirectory $bundleRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $runtime "$role.out.log") -RedirectStandardError (Join-Path $runtime "$role.error.log")
         $entries += @{ id = $process.Id; role = $role }
         @{ root = $bundleRoot; processes = $entries } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $manifestPath -Encoding utf8

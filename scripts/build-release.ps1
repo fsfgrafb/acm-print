@@ -30,7 +30,7 @@ Copy-Item -LiteralPath $frontend -Destination (Join-Path $stage 'frontend\dist')
 Copy-Item -LiteralPath (Join-Path $projectRoot 'frontend\public\brand') -Destination (Join-Path $stage 'frontend\public\brand') -Recurse
 Copy-Item -LiteralPath (Join-Path $projectRoot 'backend\migrations') -Destination (Join-Path $stage 'backend\migrations') -Recurse
 $example = Get-Content -LiteralPath (Join-Path $projectRoot 'config\platform.example.toml') -Raw
-$example.Replace('http://localhost:5173', 'http://localhost:8000') | Set-Content -LiteralPath (Join-Path $stage 'config\platform.example.toml') -Encoding utf8NoBOM
+$example.Replace('http://localhost:5173', 'http://localhost') | Set-Content -LiteralPath (Join-Path $stage 'config\platform.example.toml') -Encoding utf8NoBOM
 Copy-Item -LiteralPath (Join-Path $projectRoot '.env.example') -Destination $stage
 Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\release.md') -Destination (Join-Path $stage 'README.md')
 Copy-Item -LiteralPath (Join-Path $projectRoot 'scripts\release\start.ps1') -Destination $stage

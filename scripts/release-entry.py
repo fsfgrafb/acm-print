@@ -8,8 +8,8 @@ def main():
     parser = argparse.ArgumentParser(description="Printing platform")
     sub = parser.add_subparsers(dest="role", required=True)
     serve = sub.add_parser("serve")
-    serve.add_argument("--host", default="127.0.0.1")
-    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--host", default="0.0.0.0")
+    serve.add_argument("--port", type=int, default=80)
     for role in ("conversion", "printing", "maintenance", "migrate", "check-config", "check-runtime"):
         sub.add_parser(role)
     transfer = sub.add_parser("transfer")
