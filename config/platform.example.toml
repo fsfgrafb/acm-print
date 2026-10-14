@@ -1,0 +1,24 @@
+# 新版打印平台部署配置示例。
+# 部署时复制为 config/platform.toml。UTF-8 编码；修改后重启 API 并刷新页面。
+# 业务名称仅在这里指定，前后端不得再维护另一套业务名称常量。
+[branding]
+platform_name = "ACM 集训队打印平台"
+organization_name = "ACM 集训队"
+identity_label = "学号"
+logo_url = "/brand/team-logo.svg"
+icon_url = "/brand/favicon.svg"
+
+[server]
+public_origin = "http://localhost:5173"
+secure_cookie = false # HTTPS 部署必须改为 true
+
+[storage]
+root = "var/storage"
+
+[printer]
+backend = "disabled" # disabled / windows；禁用时不会提交任何物理作业
+queue = "HP LaserJet Professional P1106"
+cancel_verified = false # 完成实机验收后才启用在印取消
+
+[converter]
+office_program = "" # 启用 Office/TXT 转换时配置 LibreOffice soffice 的绝对路径

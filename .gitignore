@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+config/platform.toml
+var/
+frontend/node_modules/
+frontend/dist/
+*.log
+*.egg-info/
+*.tsbuildinfo
+.ruff_cache/
