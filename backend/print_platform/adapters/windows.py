@@ -137,6 +137,10 @@ class WindowsPrinter:
         gdi = ctypes.WinDLL("gdi32", use_last_error=True)
         gdi.StartDocW.argtypes = [ctypes.c_void_p, ctypes.POINTER(DocInfo)]
         gdi.StartDocW.restype = ctypes.c_int
+        gdi.SetStretchBltMode.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        gdi.SetStretchBltMode.restype = ctypes.c_int
+        gdi.SetBrushOrgEx.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_void_p]
+        gdi.SetBrushOrgEx.restype = ctypes.c_int
         with self.dc(orientation) as dc:
             info = DocInfo(ctypes.sizeof(DocInfo), marker, None, None, 0)
             job_id = gdi.StartDocW(dc.GetHandleOutput(), ctypes.byref(info))
@@ -159,7 +163,11 @@ class WindowsPrinter:
                             image = bitmap.to_pil().convert("RGB")
                             try:
                                 dc.StartPage()
-                                dc.SetStretchBltMode(4)
+                                hdc = dc.GetHandleOutput()
+                                if not gdi.SetStretchBltMode(hdc, 4):  # HALFTONE
+                                    raise ctypes.WinError(ctypes.get_last_error())
+                                if not gdi.SetBrushOrgEx(hdc, 0, 0, None):
+                                    raise ctypes.WinError(ctypes.get_last_error())
                                 left, top = dc.GetDeviceCaps(112), dc.GetDeviceCaps(113)
                                 bounds = (
                                     -left,
