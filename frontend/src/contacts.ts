@@ -1,7 +1,8 @@
 const emailPattern = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/
 
 export function adminContactText(contact?: { email: string; phone: string } | null) {
-  return ['请联系管理员', contact?.email ? `邮箱：${contact.email}` : '', contact?.phone ? `手机号：${contact.phone}` : ''].filter(Boolean).join(' · ')
+  const details = [contact?.email ? `邮箱：${contact.email}` : '', contact?.phone ? `手机号：${contact.phone}` : ''].filter(Boolean).join('，')
+  return '请联系管理员。' + (details ? details + '。' : '')
 }
 
 export function validateContacts(emailValue: string, phoneValue: string) {

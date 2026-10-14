@@ -56,10 +56,10 @@ function PlatformApp() {
     {user.must_change_password ? <div className="password-gate"><Profile force /></div> : <div className="app-shell">
       <aside className="sidebar"><div className="brand"><img className="brand-logo" src={brand.logo_url} alt={brand.organization_name} /><strong>{brand.platform_name}</strong></div>
         <nav>
-          <NavLink to="/submit"><SubmitPrintIcon />提交打印</NavLink>
-          <NavLink to="/queue"><TaskQueueIcon />任务队列</NavLink>
-          <NavLink to="/profile"><UserRound size={19} />个人设置</NavLink>
-        </nav>{user.admin && <nav className="admin-nav"><NavLink to="/members"><UsersRound size={19} />用户管理</NavLink><NavLink to="/system"><Settings2 size={19} />系统管理</NavLink></nav>}
+          <NavLink draggable={false} to="/submit"><SubmitPrintIcon />提交打印</NavLink>
+          <NavLink draggable={false} to="/queue"><TaskQueueIcon />任务队列</NavLink>
+          <NavLink draggable={false} to="/profile"><UserRound size={19} />个人设置</NavLink>
+        </nav>{user.admin && <nav className="admin-nav"><NavLink draggable={false} to="/members"><UsersRound size={19} />用户管理</NavLink><NavLink draggable={false} to="/system"><Settings2 size={19} />系统管理</NavLink></nav>}
         <div className="account"><div><strong>{user.student_id}</strong><small>{user.admin ? '管理员' : '用户'}</small></div><button title="退出登录" aria-label="退出登录" onClick={async () => { try { await post('/auth/logout'); setUser(null); setCsrf(''); client.clear(); navigate('/') } catch (e) { notify(e as Error, true) } }}><LogOut size={18} /></button></div>
       </aside><main className={'main-panel' + (location.pathname === '/submit' ? ' submit-panel' : '')}><AnimatePresence mode="wait" initial={false}><motion.div key={location.pathname} className="route-frame" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: .18 }}>
         <Routes location={location}><Route path="/submit" element={<Submit />} /><Route path="/queue" element={<Queue />} /><Route path="/profile" element={<Profile />} />

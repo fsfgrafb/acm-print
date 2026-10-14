@@ -64,6 +64,35 @@ export function DateTimePicker({ label, value, onChange, disabled }: { label: st
   const [date = '', time = '00:00'] = value.split('T')
   const [hour = '00', minute = '00'] = time.split(':')
   return <div className="date-time-picker"><DatePicker label={label} value={date} disabled={disabled} onChange={next => onChange(next ? `${next}T${hour}:${minute}` : '')} />
-    <div className="date-time-clock"><select aria-label={label + '小时'} value={hour} disabled={disabled || !date} onChange={e => onChange(`${date}T${e.target.value}:${minute}`)}>{Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(v => <option key={v} value={v}>{v}</option>)}</select><span>:</span><select aria-label={label + '分钟'} value={minute} disabled={disabled || !date} onChange={e => onChange(`${date}T${hour}:${e.target.value}`)}>{Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+    <div className="date-time-clock"><TimeChoice label={label + '小时'} value={hour} count={24} disabled={disabled || !date} onChange={next => onChange(`${date}T${next}:${minute}`)} /><span>:</span><TimeChoice label={label + '分钟'} value={minute} count={60} disabled={disabled || !date} onChange={next => onChange(`${date}T${hour}:${next}`)} /></div>
   </div>
+}
+
+function TimeChoice({ label, value, count, onChange, disabled }: { label: string; value: string; count: number; onChange: (value: string) => void; disabled?: boolean }) {
+  const [open, setOpen] = useState(false), [position, setPosition] = useState({ left: 0, top: 0 })
+  const trigger = useRef<HTMLButtonElement>(null), popup = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (!open) return
+    const place = () => {
+      const box = trigger.current!.getBoundingClientRect(), height = popup.current?.offsetHeight ?? 240
+      const width = popup.current?.offsetWidth ?? 220
+      setPosition({ left: Math.max(12, Math.min(box.left, window.innerWidth - width - 12)), top: Math.max(12, box.bottom + height + 8 < window.innerHeight ? box.bottom + 8 : box.top - height - 8) })
+    }
+    place(); window.addEventListener('resize', place); window.addEventListener('scroll', place, true)
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
+  }, [open])
+  useEffect(() => {
+    if (!open) return
+    const outside = (event: PointerEvent) => { if (!trigger.current?.contains(event.target as Node) && !popup.current?.contains(event.target as Node)) setOpen(false) }
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus() } }
+    document.addEventListener('pointerdown', outside); document.addEventListener('keydown', escape, true)
+    const selected = popup.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]')
+    selected?.focus({ preventScroll: true }); selected?.scrollIntoView({ block: 'nearest' })
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape, true) }
+  }, [open])
+  return <><button ref={trigger} type="button" className="time-choice-trigger" aria-label={label} aria-haspopup="listbox" aria-expanded={open} disabled={disabled} onClick={() => setOpen(!open)}>{value}</button>
+    {createPortal(<AnimatePresence>{open && <motion.div ref={popup} className="time-choice-popover" style={position} role="listbox" aria-label={label + '选择'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .14 }}>
+      {Array.from({ length: count }, (_, i) => String(i).padStart(2, '0')).map(option => <button key={option} type="button" role="option" aria-selected={option === value} onClick={() => { onChange(option); setOpen(false); trigger.current?.focus() }}>{option}</button>)}
+    </motion.div>}</AnimatePresence>, document.body)}
+  </>
 }

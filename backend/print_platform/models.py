@@ -52,6 +52,11 @@ class SystemState(Base):
     settings_version: Mapped[int] = mapped_column(Integer, default=1)
     device: Mapped[dict] = mapped_column(JSONB, default=dict)
     device_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    submit_visit_count: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class SubmitVisit(Entity, Base):
+    __tablename__ = "submit_page_visits"
 
 
 class LoginSession(Base):

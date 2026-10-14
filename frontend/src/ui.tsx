@@ -22,9 +22,10 @@ export function NotificationProvider({ children }: { children: (notify: Notify) 
     const text = typeof value === 'string' ? value : value.message
     const id = ++nextId.current
     const contactRequired = error && (needsAdmin || (value instanceof ApiError && (value.status >= 500 || value.code === 'converter_unavailable')))
-    setMessage({ id, text: contactRequired ? `${text} · 请联系管理员` : text, error })
+    const reason = text.replace(/(?:[，。\s]*)请联系管理员.*$/, '').replace(/[。！？\s]+$/, '')
+    setMessage({ id, text: contactRequired ? `${reason}，请联系管理员。` : text, error })
     if (contactRequired) void api<User>('/auth/me').then(user => {
-      setMessage(current => current?.id === id ? { ...current, text: `${text} · ${adminContactText(user.admin_contact)}` } : current)
+      setMessage(current => current?.id === id ? { ...current, text: `${reason}，${adminContactText(user.admin_contact)}` } : current)
     }).catch(() => {})
   }, [])
   useEffect(() => {
@@ -52,8 +53,8 @@ export function NotificationProvider({ children }: { children: (notify: Notify) 
   </motion.div>}</AnimatePresence></NotificationContext.Provider>
 }
 
-export function PageHeader({ title, action }: { title: string; action?: ReactNode }) {
-  return <header className="page-header"><h1>{title}</h1>{action}</header>
+export function PageHeader({ title, action, subtitle }: { title: string; action?: ReactNode; subtitle?: ReactNode }) {
+  return <header className="page-header"><div><h1>{title}</h1>{subtitle && <p className="page-subtitle">{subtitle}</p>}</div>{action}</header>
 }
 export function ErrorNotification({ error, needsAdmin = false }: { error: unknown; needsAdmin?: boolean }) {
   const notify = useNotify()

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
@@ -23,7 +23,14 @@ export default function Queue() {
   const history = useQuery({ queryKey: ['queue', 'history', historyPage],
     queryFn: () => api<QueueData>(`/queue?scope=history&page=${historyPage}`), refetchInterval: 5000 })
   const status = active.data ?? history.data
-  const deviceFault = status && !status.paused && (status.device.blocked || !status.device.available)
+  const deviceFault = status && (status.device.blocked || !status.device.available)
+  const maintenanceNotified = useRef(false)
+  useEffect(() => {
+    if (deviceFault && active.isFetchedAfterMount && !maintenanceNotified.current) {
+      maintenanceNotified.current = true
+      notify(`${status.device.message}，${adminContactText(status.admin_contact)}`, true)
+    }
+  }, [deviceFault, status, active.isFetchedAfterMount, notify])
   const refresh = () => Promise.all([active.refetch(), history.refetch()])
   async function action(path: string, message: string) {
     setBusy(true)
@@ -33,9 +40,9 @@ export default function Queue() {
   }
   return <>
     <PageHeader title="任务队列" />
-    {status && <div className="device-banner"><span className="device-icon"><Printer size={22} /></span>
+    {status && <div className="device-banner"><span className={'device-icon device-' + (status.paused ? 'paused' : deviceFault ? 'fault' : 'ready')}><Printer size={22} /></span>
       <div><strong>{status.paused ? '应用队列已暂停' : status.device.message}</strong>
-        {deviceFault && <p className="device-contact" title={adminContactText(status.admin_contact)}>{adminContactText(status.admin_contact)}</p>}</div>
+        </div>
       {user.admin && <button className="button" disabled={busy} onClick={() => void action('/admin/queue/' + (status.paused ? 'resume' : 'pause'), '队列状态已更新')}>
         {status.paused ? <Play size={15} /> : <Pause size={15} />}{status.paused ? '恢复队列' : '暂停队列'}
       </button>}
@@ -74,7 +81,7 @@ function TaskCard({ task, contact, busy, preview, action }: {
 }) {
   const { user, branding, notify } = useApp()
   useEffect(() => {
-    if (task.state === 'unknown' || task.state === 'failed') notify(`${labels[task.state]} · ${adminContactText(contact)}`, true)
+    if (task.state === 'unknown' || task.state === 'failed') notify(`${labels[task.state]}，${adminContactText(contact)}`, true)
   }, [task.state, contact?.email, contact?.phone, notify])
   const navigate = useNavigate()
   const [downloading, setDownloading] = useState(false)

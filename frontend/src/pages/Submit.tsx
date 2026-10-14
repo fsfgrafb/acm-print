@@ -51,6 +51,10 @@ export default function Submit() {
   const storageKey = 'print-drafts-v1:' + user.id
   const navigate = useNavigate(), location = useLocation()
   const picker = useRef<HTMLInputElement>(null)
+  const visitId = useRef(crypto.randomUUID())
+  const visit = useQuery({ queryKey: ['submit-visit', visitId.current], queryFn: () => post<{ visit_count: number; print_total_pages: number }>('/printing/visit', { visit_id: visitId.current }), staleTime: Infinity, refetchOnWindowFocus: false })
+  const statistics = useQuery({ queryKey: ['submit-statistics'], queryFn: () => api<{ visit_count: number; print_total_pages: number }>('/printing/statistics'), enabled: !!visit.data, refetchInterval: 10000 })
+  const totals = statistics.data ?? visit.data
   const retry = useRef<{ signature: string; key: string } | null>(null)
   const [drafts, setDrafts] = useState<Draft[]>(() => restoreDrafts(storageKey)), [busy, setBusy] = useState(false)
   const [previewUid, setPreviewUid] = useState<string | null>(null)
@@ -122,7 +126,7 @@ export default function Submit() {
       notify(remaining ? `已提交 ${prepared.length} 个文件，${remaining} 个未提交` : '已提交')
     } catch (error) { notify(error as Error, true) } finally { setBusy(false) }
   }
-  return <><PageHeader title="提交打印" /><ErrorNotification error={options.error} /><div className="submit-layout">
+  return <><PageHeader title="提交打印" subtitle={<span className="submit-statistics"><span>访问次数 {totals?.visit_count ?? '—'}</span><span>累计打印 {totals?.print_total_pages ?? '—'} 页</span></span>} /><ErrorNotification error={options.error ?? visit.error ?? statistics.error} /><div className="submit-layout">
     <button type="button" className="upload-zone" disabled={busy || !options.data} onClick={() => picker.current?.click()}>
       <span className="upload-icon-circle"><Upload size={42} /></span><strong>选择文件</strong><small className="upload-formats">PDF、Word、Excel、PPT、图片、TXT</small>
     </button><input ref={picker} type="file" hidden multiple accept=".pdf,.png,.jpg,.jpeg,.bmp,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e => { void addFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />

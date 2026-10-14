@@ -6,7 +6,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from ..config import config
@@ -22,6 +23,7 @@ from ..models import (
     PrintTask,
     RenderPlan,
     Subject,
+    SubmitVisit,
     SystemState,
     now,
 )
@@ -30,6 +32,33 @@ from ..services.storage import ensure_space, resolve
 from .files import authorized_document, authorized_plan, document_json, plan_json
 
 router = APIRouter()
+
+
+def submit_statistics(db):
+    return {
+        "visit_count": db.scalar(select(SystemState.submit_visit_count).where(SystemState.id == 1)),
+        "print_total_pages": db.scalar(select(func.coalesce(func.sum(History.total_pages), 0))),
+    }
+
+
+@router.get("/printing/statistics")
+def printing_statistics(actor: Actor = Depends(current_actor), db: Session = Depends(get_db)):
+    return submit_statistics(db)
+
+
+class VisitInput(BaseModel):
+    visit_id: uuid.UUID
+
+
+@router.post("/printing/visit")
+def submit_visit(body: VisitInput, actor: Actor = Depends(current_actor), db: Session = Depends(get_db)):
+    added = db.scalar(insert(SubmitVisit).values(id=body.visit_id, created_at=now())
+                      .on_conflict_do_nothing(index_elements=[SubmitVisit.id]).returning(SubmitVisit.id))
+    if added:
+        db.execute(update(SystemState).where(SystemState.id == 1)
+                   .values(submit_visit_count=SystemState.submit_visit_count + 1))
+    db.commit()
+    return submit_statistics(db)
 
 
 @router.get("/printing/options")
