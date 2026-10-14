@@ -5,7 +5,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const dateValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
-export default function DatePicker({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+export default function DatePicker({ label, value, onChange, disabled = false }: { label: string; value: string; onChange: (value: string) => void; disabled?: boolean }) {
   const [open, setOpen] = useState(false)
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [position, setPosition] = useState({ left: 0, top: 0 })
@@ -30,19 +30,19 @@ export default function DatePicker({ label, value, onChange }: { label: string; 
     const outside = (event: PointerEvent) => {
       if (!trigger.current?.contains(event.target as Node) && !popup.current?.contains(event.target as Node)) setOpen(false)
     }
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); trigger.current?.focus() } }
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus() } }
     document.addEventListener('pointerdown', outside)
-    document.addEventListener('keydown', escape)
+    document.addEventListener('keydown', escape, true)
     const focus = popup.current?.querySelector<HTMLButtonElement>('.calendar-selected')
       ?? popup.current?.querySelector<HTMLButtonElement>('.calendar-today')
       ?? popup.current?.querySelector<HTMLButtonElement>('.calendar-day')
     focus?.focus({ preventScroll: true })
-    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape) }
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape, true) }
   }, [open])
   const choose = (date: string) => { onChange(date); setOpen(false); trigger.current?.focus() }
   const offset = (month.getDay() + 6) % 7
   return <div className="date-picker"><span className="date-picker-label">{label}</span>
-    <button ref={trigger} type="button" className={'date-picker-trigger ' + (!value ? 'date-empty' : '')} aria-label={label} aria-haspopup="dialog" aria-expanded={open}
+    <button ref={trigger} type="button" disabled={disabled} className={'date-picker-trigger ' + (!value ? 'date-empty' : '')} aria-label={label} aria-haspopup="dialog" aria-expanded={open}
       onClick={() => { if (!open) { const selected = value ? new Date(value + 'T12:00:00') : new Date(); setMonth(new Date(selected.getFullYear(), selected.getMonth(), 1)) } setOpen(!open) }}>
       <span>{value ? value.replaceAll('-', '/') : '选择日期'}</span><CalendarDays size={17} />
     </button>
@@ -57,5 +57,13 @@ export default function DatePicker({ label, value, onChange }: { label: string; 
         })}</div></div>
       <div className="calendar-footer"><button type="button" onClick={() => choose('')}>清除</button><button type="button" onClick={() => choose(today)}>今天</button></div>
     </motion.div>}</AnimatePresence>, document.body)}
+  </div>
+}
+
+export function DateTimePicker({ label, value, onChange, disabled }: { label: string; value: string; onChange: (value: string) => void; disabled?: boolean }) {
+  const [date = '', time = '00:00'] = value.split('T')
+  const [hour = '00', minute = '00'] = time.split(':')
+  return <div className="date-time-picker"><DatePicker label={label} value={date} disabled={disabled} onChange={next => onChange(next ? `${next}T${hour}:${minute}` : '')} />
+    <div className="date-time-clock"><select aria-label={label + '小时'} value={hour} disabled={disabled || !date} onChange={e => onChange(`${date}T${e.target.value}:${minute}`)}>{Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(v => <option key={v} value={v}>{v}</option>)}</select><span>:</span><select aria-label={label + '分钟'} value={minute} disabled={disabled || !date} onChange={e => onChange(`${date}T${hour}:${e.target.value}`)}>{Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(v => <option key={v} value={v}>{v}</option>)}</select></div>
   </div>
 }

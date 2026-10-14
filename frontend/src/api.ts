@@ -41,6 +41,24 @@ async function request<T>(path: string, options: RequestInit, retryCsrf: boolean
 export const post = <T>(path: string, body?: unknown) => api<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) })
 export const patch = <T>(path: string, body: unknown) => api<T>(path, { method: 'PATCH', body: JSON.stringify(body) })
 
+export async function downloadFile(path: string, fallbackName: string) {
+  const response = await fetch('/api' + path, { credentials: 'same-origin' })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    if (response.status === 401) window.dispatchEvent(new Event('session-expired'))
+    throw new ApiError(error.code ?? 'download_error', error.message ?? '下载失败，请重试', response.status)
+  }
+  const file = await response.blob()
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  let filename = fallbackName
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i), plain = disposition.match(/filename="([^"]+)"/i)
+  try { filename = encoded ? decodeURIComponent(encoded[1]) : plain?.[1] ?? fallbackName } catch { /* Use the fallback for malformed headers. */ }
+  const url = URL.createObjectURL(file), link = document.createElement('a')
+  link.href = url; link.download = filename; link.hidden = true
+  document.body.append(link); link.click(); link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export interface Branding { platform_name: string; organization_name: string; identity_label: string; logo_url: string; icon_url: string }
 export interface User {
   id: string; student_id: string; admin: boolean; must_change_password: boolean;

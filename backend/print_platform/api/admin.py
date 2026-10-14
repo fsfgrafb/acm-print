@@ -140,8 +140,8 @@ def update_member(
         raise AppError("not_found", "成员不存在", 404)
     if body.banned and subject.id == state.admin_subject_id:
         raise AppError("cannot_ban_admin", "请先完成管理员交接")
-    if body.expires_at is not None and body.expires_at <= max(subject.expires_at, now()):
-        raise AppError("invalid_expiry", "新的注销时间必须晚于当前注销时间和现在")
+    if body.expires_at is not None and body.expires_at <= now():
+        raise AppError("invalid_expiry", "新的注销时间必须晚于现在")
     for key, value in body.model_dump(exclude_none=True).items():
         setattr(subject, key, value)
     if body.banned:

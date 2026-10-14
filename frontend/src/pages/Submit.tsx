@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowDown, ArrowUp, ChevronDown, Eye, LoaderCircle, Send, Upload, X } from 'lucide-react'
 import { api, post, type Plan, type PrintFile } from '../api'
-import { ErrorNotice, PageHeader, Preview, useApp } from '../ui'
+import { ErrorNotification, PageHeader, Preview, useApp } from '../ui'
 
 interface Draft {
   uid: string; file?: PrintFile; filename: string; uploading?: boolean; error?: string;
@@ -72,7 +72,7 @@ export default function Submit() {
       if (!active) return
       setDrafts(values => [...values, { uid: crypto.randomUUID(), file: data.file, filename: data.file.filename, mode: 'custom', expression: data.plan.page_numbers.join(','), copies: data.copies, orientation: data.plan.orientation, scaling: data.plan.scaling, parent_task_id: data.parent_task_id }])
       navigate('/submit', { replace: true, state: null })
-    }).catch(error => { if (active) notify(error.message, true) })
+    }).catch(error => { if (active) notify(error, true) })
     return () => { active = false }
   }, [location.state, navigate])
   async function addFiles(files: File[]) {
@@ -80,6 +80,7 @@ export default function Submit() {
     if (drafts.length + files.length > options.data.max_batch_files) { notify('文件数量超过单批上限', true); return }
     const added = files.map(file => ({ uid: crypto.randomUUID(), filename: file.name, uploading: true, mode: 'all', expression: '', copies: 1, orientation: 'portrait', scaling: 'actual' } as Draft))
     setDrafts(values => [...values, ...added])
+    let uploaded = 0
     for (let index = 0; index < files.length; index++) {
       try {
         if (files[index].size > options.data.max_file_mib * 1048576) throw new Error('文件大小超过上限')
@@ -94,12 +95,15 @@ export default function Submit() {
           file = await api<PrintFile>('/files', { method: 'POST', body: data })
         }
         update(added[index].uid, { file, uploading: false })
+        uploaded++
       } catch (error) { update(added[index].uid, { error: (error as Error).message, uploading: false }) }
     }
+    if (uploaded) notify(`已上传 ${uploaded} 个文件`)
   }
   function move(from: number, to: number) {
     if (busy || to < 0 || to >= drafts.length) return
     setDrafts(values => { const next = [...values]; const [item] = next.splice(from, 1); next.splice(to, 0, item); return next })
+    notify('排序已更新')
   }
   const prepared = drafts.filter(isPrepared), pages = drafts.reduce((sum, d) => sum + pageCount(d) * d.copies, 0)
   const hasPending = drafts.some(isPending)
@@ -116,16 +120,16 @@ export default function Submit() {
       setDrafts(values => values.filter(d => !prepared.some(p => p.uid === d.uid)))
       retry.current = null
       notify(remaining ? `已提交 ${prepared.length} 个文件，${remaining} 个未提交` : '已提交')
-    } catch (error) { notify((error as Error).message, true) } finally { setBusy(false) }
+    } catch (error) { notify(error as Error, true) } finally { setBusy(false) }
   }
-  return <><PageHeader title="提交打印" /><ErrorNotice error={options.error} /><div className="submit-layout">
+  return <><PageHeader title="提交打印" /><ErrorNotification error={options.error} /><div className="submit-layout">
     <button type="button" className="upload-zone" disabled={busy || !options.data} onClick={() => picker.current?.click()}>
-      <Upload size={44} /><strong>选择文件</strong>
+      <span className="upload-icon-circle"><Upload size={42} /></span><strong>选择文件</strong><small className="upload-formats">PDF、Word、Excel、PPT、图片、TXT</small>
     </button><input ref={picker} type="file" hidden multiple accept=".pdf,.png,.jpg,.jpeg,.bmp,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e => { void addFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />
     <aside className="submission-sidebar"><div className="submission-toolbar"><div><span>文件数 <strong>{drafts.length}</strong></span><span>总页数 <strong>{pages}</strong></span></div>
       <button className="button button-primary" disabled={!prepared.length || busy || hasPending} onClick={() => void submit()}><Send size={16} />{busy ? '提交中' : '打印'}</button></div>
       <div className="upload-list"><AnimatePresence initial={false}>{drafts.map((draft, index) => <FileCard key={draft.uid} draft={draft} maxCopies={options.data?.max_copies ?? 20}
-        update={changes => update(draft.uid, changes)} remove={() => setDrafts(values => values.filter(d => d.uid !== draft.uid))} move={offset => move(index, index + offset)} first={index === 0} last={index === drafts.length - 1}
+        update={changes => update(draft.uid, changes)} remove={() => { setDrafts(values => values.filter(d => d.uid !== draft.uid)); notify('文件已移除') }} move={offset => move(index, index + offset)} first={index === 0} last={index === drafts.length - 1}
         preview={() => setPreviewUid(draft.uid)} disabled={busy} />)}</AnimatePresence>{!drafts.length && <p className="empty-upload-list">尚未添加文件</p>}</div>
     </aside></div><Preview planId={previewDraft && isPrepared(previewDraft) ? previewDraft.plan!.id : null} open={!!previewDraft} close={() => setPreviewUid(null)} /></>
 }
@@ -183,7 +187,7 @@ function FileCard({ draft, maxCopies, update, remove, move, first, last, preview
   return <motion.article layout="position" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} transition={{ duration: .2 }} className={'file-card ' + (failed ? 'file-failed' : '')}>
     <header><button className={'icon-button preview-upload ' + (failed ? 'preview-failed' : '')} title={pending ? '正在生成预览' : failed ? '重试预览' : '预览'} aria-label={pending ? '正在生成预览' : failed ? '重试预览' : '预览'} disabled={!!pending || disabled || draft.file?.status !== 'ready'} onClick={() => { if (ready) preview(); else setRetryVersion(value => value + 1) }}>
       {pending ? <LoaderCircle size={19} className="spin" /> : failed ? <X size={19} /> : <Eye size={19} />}</button>
-      <div className="file-title"><strong title={draft.filename}>{draft.filename}</strong><small>{draft.error ?? (draft.file?.status === 'failed' ? '文件处理失败' : draft.file?.page_count ? `${pageCount(draft)} / ${draft.file.page_count} 页` : '')}</small></div>
+      <div className="file-title"><strong title={draft.filename}>{draft.filename}</strong><small>{draft.file?.page_count ? `${pageCount(draft)} / ${draft.file.page_count} 页` : ''}</small></div>
       <button className="icon-button" title="上移" disabled={disabled || first} aria-label="上移文件" onClick={() => move(-1)}><ArrowUp size={15} /></button><button className="icon-button" title="下移" disabled={disabled || last} aria-label="下移文件" onClick={() => move(1)}><ArrowDown size={15} /></button>
       <button className="icon-button remove-button" title="移除" disabled={disabled} aria-label="移除文件" onClick={remove}><X size={18} /></button></header>
     <fieldset disabled={disabled || draft.file?.status !== 'ready'}><div className="file-controls"><div className="segmented" role="group" aria-label="页码范围"><motion.span aria-hidden="true" className="page-mode-slider" initial={false} animate={{ x: `${['all', 'odd', 'even', 'custom'].indexOf(draft.mode) * 100}%` }} transition={{ duration: .24, ease: [.22, 1, .36, 1] }} />{[['all', '全部页'], ['odd', '奇数页'], ['even', '偶数页'], ['custom', '自定义']].map(([value, label]) => <button type="button" key={value} disabled={value === 'even' && (draft.file?.page_count ?? 0) < 2} className={draft.mode === value ? 'selected' : ''} aria-pressed={draft.mode === value} onClick={() => { if (value !== draft.mode) change({ mode: value }) }}>{label}</button>)}</div>
@@ -191,6 +195,6 @@ function FileCard({ draft, maxCopies, update, remove, move, first, last, preview
       <AnimatePresence initial={false}>{draft.mode === 'custom' && <motion.div key="custom" className="custom-editor" initial={{ height: 0, opacity: 0, overflow: 'hidden' }} animate={{ height: 'auto', opacity: 1, overflow: 'hidden', transitionEnd: { overflow: 'visible' } }} exit={{ height: 0, opacity: 0, overflow: 'hidden' }}><input className="page-expression" value={draft.expression} onFocus={() => setEditingPages(true)} onBlur={() => setEditingPages(false)} onChange={e => change({ expression: e.target.value })} placeholder="例如：3,1-2,3" aria-label="自定义页码" /></motion.div>}</AnimatePresence>
       <button className={'advanced-toggle ' + (advanced ? 'expanded' : '')} type="button" aria-expanded={advanced} onClick={() => setAdvanced(value => !value)}><ChevronDown size={15} />高级设置</button>
       <AnimatePresence initial={false}>{advanced && <motion.div className="advanced-wrapper" initial={{ height: 0, opacity: 0, overflow: 'hidden' }} animate={{ height: 'auto', opacity: 1, overflow: 'hidden', transitionEnd: { overflow: 'visible' } }} exit={{ height: 0, opacity: 0, overflow: 'hidden' }}><div className="advanced-controls"><label>方向<select value={draft.orientation} onChange={e => change({ orientation: e.target.value })}><option value="portrait">纵向</option><option value="landscape">横向</option></select></label><label>缩放<select value={draft.scaling} onChange={e => change({ scaling: e.target.value })}><option value="actual">实际尺寸</option><option value="fit">适合可打印区域</option><option value="75%">75%</option><option value="50%">50%</option><option value="25%">25%</option></select></label></div></motion.div>}</AnimatePresence>
-    </fieldset><AnimatePresence initial={false}>{(requestError || file.error || plan.error || draft.plan?.status === 'failed') && <motion.div key="error" style={{ overflow: 'hidden' }} initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: .2 }}><ErrorNotice error={requestError ?? file.error ?? plan.error ?? new Error('预览生成失败')} /></motion.div>}</AnimatePresence>
+    </fieldset><ErrorNotification needsAdmin={[draft.file?.error_code, draft.plan?.error_code].some(code => ['converter_unavailable', 'conversion_failed', 'render_failed'].includes(code ?? ''))} error={draft.error ? new Error(draft.error) : requestError ?? file.error ?? plan.error ?? (draft.file?.status === 'failed' ? new Error('文件处理失败') : draft.plan?.status === 'failed' ? new Error('预览生成失败') : null)} />
   </motion.article>
 }

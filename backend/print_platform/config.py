@@ -1,11 +1,12 @@
 import os
+import sys
 import tomllib
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[2]
 
 
 class StrictModel(BaseModel):

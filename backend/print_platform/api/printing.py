@@ -170,10 +170,9 @@ def queue(
         else {"available": False, "blocked": True, "message": "打印进程尚未连接或状态已过期"}
     )
     contact = None
-    if device.get("blocked") or not device.get("available"):
-        admin = db.get(Subject, state.admin_subject_id)
-        if admin:
-            contact = {"email": admin.email, "phone": admin.phone}
+    admin = db.get(Subject, state.admin_subject_id)
+    if admin:
+        contact = {"email": admin.email, "phone": admin.phone}
     return {"items": items, "has_more": len(rows) > 30, "paused": state.paused, "device": device, "admin_contact": contact}
 
 

@@ -75,6 +75,27 @@ $env:PLATFORM_SETUP_TOKEN = '部署者设置的随机初始化凭证'
 
 本地强制交接命令：`.\.venv\Scripts\platform-admin.exe transfer --student-id <身份标识>`，仅交接给已有、未封禁、未到期成员，撤销双方会话，不重开初始化。
 
+## 版本发布
+
+[Release 工作流](.github/workflows/release.yml) 只由推送版本标签触发，普通分支推送、PR 或手动操作不会触发。支持 `v1.2.3` 和 `v1.2.3-rc.1`；带后缀的版本标记为预发布。
+
+```powershell
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin v0.1.0
+```
+
+GitHub Actions 构建前端和 Windows x64 后端可执行文件，验证打包后的运行依赖，再自动创建 Release 并上传 `print-platform-v0.1.0-windows-x64.zip` 与 SHA-256 文件。无需额外配置个人令牌，使用仓库的 `GITHUB_TOKEN`。发布包不包含本地配置、凭证、数据库或上传文件；部署说明见 [发布包使用说明](docs/release.md)。版本标签应指向已提交的源码；已发布版本不覆盖。
+
+本地验证同一构建流程（PowerShell 7，Windows x64）：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-build.lock
+npm --prefix frontend run build
+.\scripts\build-release.ps1 -Version v0.1.0-local -Python .venv/Scripts/python.exe
+```
+
+产物保存在忽略目录 `var/releases`，下载后不需要 Python/Node；数据库、打印驱动和 LibreOffice 按部署需求另行配置。
+
 ## 最少验证
 
 日常使用 `npm run build` 和 `.\.venv\Scripts\ruff.exe check backend`。关键链路只有 [一条综合冒烟检查](scripts/smoke.py)，必须使用新建的独立 `*_smoke` PostgreSQL 数据库，不能指向业务库；它不发起物理打印。

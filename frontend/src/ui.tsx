@@ -1,25 +1,47 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { AlertCircle, CheckCircle2, LoaderCircle, X } from 'lucide-react'
-import type { Branding, User } from './api'
+import { api, ApiError, type Branding, type User } from './api'
+import { adminContactText } from './contacts'
+
+type Notify = (message: string | Error, error?: boolean, needsAdmin?: boolean) => void
 
 export const AppContext = createContext<{
   branding: Branding; user: User; updateUser: (user: User) => void;
-  notify: (message: string, error?: boolean) => void;
+  notify: Notify;
 }>({} as never)
 export const useApp = () => useContext(AppContext)
+const NotificationContext = createContext<Notify>(() => {})
+export const useNotify = () => useContext(NotificationContext)
 
-export function NotificationProvider({ children }: { children: (notify: (message: string, error?: boolean) => void) => ReactNode }) {
+export function NotificationProvider({ children }: { children: (notify: Notify) => ReactNode }) {
   const [message, setMessage] = useState<{ id: number; text: string; error: boolean } | null>(null)
   const nextId = useRef(0)
-  const notify = useCallback((text: string, error = false) => setMessage({ id: ++nextId.current, text, error }), [])
+  const invalidBatch = useRef(false)
+  const notify = useCallback<Notify>((value, error = false, needsAdmin = false) => {
+    const text = typeof value === 'string' ? value : value.message
+    const id = ++nextId.current
+    const contactRequired = error && (needsAdmin || (value instanceof ApiError && (value.status >= 500 || value.code === 'converter_unavailable')))
+    setMessage({ id, text: contactRequired ? `${text} · 请联系管理员` : text, error })
+    if (contactRequired) void api<User>('/auth/me').then(user => {
+      setMessage(current => current?.id === id ? { ...current, text: `${text} · ${adminContactText(user.admin_contact)}` } : current)
+    }).catch(() => {})
+  }, [])
   useEffect(() => {
     if (!message) return
     const id = message.id
     const timer = window.setTimeout(() => setMessage(current => current?.id === id ? null : current), 5000)
     return () => window.clearTimeout(timer)
   }, [message?.id])
-  return <>{children(notify)}<AnimatePresence>{message && <motion.div key={message.id}
+  return <NotificationContext.Provider value={notify}><div style={{ display: 'contents' }} onInvalidCapture={event => {
+    event.preventDefault()
+    if (invalidBatch.current) return
+    invalidBatch.current = true
+    queueMicrotask(() => { invalidBatch.current = false })
+    const field = event.target as HTMLInputElement
+    field.focus()
+    notify(field.validationMessage || '请检查输入内容', true)
+  }}>{children(notify)}</div><AnimatePresence>{message && <motion.div key={message.id}
     initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 100 }}
     transition={{ duration: .28, ease: [.22, 1, .36, 1] }} className={'toast ' + (message.error ? 'toast-error' : '')}
     role={message.error ? 'alert' : 'status'}>
@@ -27,14 +49,17 @@ export function NotificationProvider({ children }: { children: (notify: (message
     <button className="toast-close" aria-label="关闭通知" title="关闭" onClick={() => setMessage(null)}><X size={18} /></button>
     <div className="toast-progress" aria-hidden="true"><motion.div className="toast-progress-fill"
       initial={{ width: '100%' }} animate={{ width: '0%' }} transition={{ duration: 5, ease: 'linear' }} /></div>
-  </motion.div>}</AnimatePresence></>
+  </motion.div>}</AnimatePresence></NotificationContext.Provider>
 }
 
 export function PageHeader({ title, action }: { title: string; action?: ReactNode }) {
   return <header className="page-header"><h1>{title}</h1>{action}</header>
 }
-export function ErrorNotice({ error }: { error: unknown }) {
-  return error ? <div className="error-notice" role="alert"><AlertCircle size={18} />{error instanceof Error ? error.message : '暂时无法加载'}</div> : null
+export function ErrorNotification({ error, needsAdmin = false }: { error: unknown; needsAdmin?: boolean }) {
+  const notify = useNotify()
+  const text = error ? error instanceof Error ? error.message : '暂时无法加载' : ''
+  useEffect(() => { if (text) notify(error instanceof Error ? error : text, true, needsAdmin) }, [text, notify, needsAdmin])
+  return null
 }
 export function Empty({ title, description, children }: { title: string; description: string; children?: ReactNode }) {
   return <div className="empty-state"><div className="empty-symbol">↳</div><h3>{title}</h3><p>{description}</p>{children}</div>
