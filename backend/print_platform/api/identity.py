@@ -23,7 +23,7 @@ class Setup(BaseModel):
 
 
 class PasswordChange(BaseModel):
-    current_password: str = Field(max_length=128)
+    current_password: str | None = Field(default=None, max_length=128)
     new_password: str = Field(max_length=128)
 
 
@@ -145,7 +145,9 @@ def change_password(
     db: Session = Depends(get_db),
 ):
     subject = db.scalar(select(Subject).where(Subject.id == actor.subject.id).with_for_update())
-    if not verify(subject.password_hash, body.current_password):
+    if not subject.must_change_password and (
+        body.current_password is None or not verify(subject.password_hash, body.current_password)
+    ):
         raise AppError("invalid_password", "当前密码不正确", 403)
     if not settings(db.get(SystemState, 1))["min_password_length"] <= len(body.new_password) <= 128:
         raise AppError("invalid_password_length", "密码长度不符合系统要求")

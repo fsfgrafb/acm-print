@@ -13,8 +13,8 @@ export default function Profile({ force = false }: { force?: boolean }) {
       </form></section>}
       <section className="panel"><h2>{force ? '设置新密码' : '修改密码'}</h2><form onSubmit={async e => { e.preventDefault(); setBusy(true); const element = e.currentTarget; const form = new FormData(element); const password = String(form.get('new'))
         if (password !== form.get('confirm')) { notify('两次输入的新密码不一致', true); setBusy(false); return }
-        try { const value = await post<User>('/auth/change-password', { current_password: form.get('current'), new_password: password }); updateUser(value); element.reset(); notify('密码已更新'); void api<User>('/auth/me').then(updateUser).catch(err => notify(err as Error, true)) }
+        try { const value = await post<User>('/auth/change-password', { ...(force ? {} : { current_password: form.get('current') }), new_password: password }); updateUser(value); element.reset(); notify('密码已更新'); void api<User>('/auth/me').then(updateUser).catch(err => notify(err as Error, true)) }
         catch (err) { notify(err as Error, true) } finally { setBusy(false) }
-      }}><label>当前密码<input type="password" name="current" autoComplete="current-password" required maxLength={128} /></label><label>新密码<input type="password" name="new" autoComplete="new-password" required minLength={4} maxLength={128} /></label><label>确认新密码<input type="password" name="confirm" autoComplete="new-password" required minLength={4} maxLength={128} /></label><button className="button button-primary" disabled={busy}>{busy ? '正在保存…' : '确认密码'}</button></form></section>
+      }}>{!force && <label>当前密码<input type="password" name="current" autoComplete="current-password" required maxLength={128} /></label>}<label>新密码<input type="password" name="new" autoComplete="new-password" required minLength={4} maxLength={128} /></label><label>确认新密码<input type="password" name="confirm" autoComplete="new-password" required minLength={4} maxLength={128} /></label><button className="button button-primary" disabled={busy}>{busy ? '正在保存…' : '确认密码'}</button></form></section>
     </div></>
 }
