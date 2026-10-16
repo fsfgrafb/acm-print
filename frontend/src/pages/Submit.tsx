@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowDown, ArrowUp, ChevronDown, Eye, LoaderCircle, Send, Upload, X } from 'lucide-react'
 import { api, post, type Plan, type PrintFile } from '../api'
 import { randomUUID } from '../uuid'
+import { listenForFileDrops } from '../fileDrop'
 import { ErrorNotification, PageHeader, Preview, useApp } from '../ui'
 
 interface Draft {
@@ -59,6 +61,8 @@ export default function Submit() {
   const retry = useRef<{ signature: string; key: string } | null>(null)
   const [drafts, setDrafts] = useState<Draft[]>(() => restoreDrafts(storageKey)), [busy, setBusy] = useState(false)
   const [previewUid, setPreviewUid] = useState<string | null>(null)
+  const [draggingFiles, setDraggingFiles] = useState(false)
+  const draftCount = useRef(drafts.length); draftCount.current = drafts.length
   const options = useQuery({ queryKey: ['printing-options'], queryFn: () => api<Options>('/printing/options') })
   const update = useCallback((uid: string, changes: Partial<Draft>) => setDrafts(values => values.map(d => d.uid === uid ? { ...d, ...changes } : d)), [])
   useEffect(() => {
@@ -81,8 +85,12 @@ export default function Submit() {
     return () => { active = false }
   }, [location.state, navigate])
   async function addFiles(files: File[]) {
-    if (!options.data) return
-    if (drafts.length + files.length > options.data.max_batch_files) { notify('文件数量超过单批上限', true); return }
+    if (busy) { notify('正在提交打印，请稍后再上传', true); return }
+    if (!options.data) { notify('上传配置尚未加载，请稍后重试', true); return }
+    if (!files.length) { notify('请拖入文件，暂不支持文件夹', true); return }
+    if (files.some(file => !/\.(pdf|png|jpe?g|bmp|txt|docx?|xlsx?|pptx?)$/i.test(file.name))) { notify('请选择 PDF、Word、Excel、PPT、图片或 TXT 文件', true); return }
+    if (draftCount.current + files.length > options.data.max_batch_files) { notify('文件数量超过单批上限', true); return }
+    draftCount.current += files.length
     const added = files.map(file => ({ uid: randomUUID(), filename: file.name, uploading: true, mode: 'all', expression: '', copies: 1, orientation: 'portrait', scaling: 'actual' } as Draft))
     setDrafts(values => [...values, ...added])
     let uploaded = 0
@@ -105,6 +113,8 @@ export default function Submit() {
     }
     if (uploaded) notify(`已上传 ${uploaded} 个文件`)
   }
+  const addFilesRef = useRef(addFiles); addFilesRef.current = addFiles
+  useEffect(() => listenForFileDrops(window, setDraggingFiles, files => { void addFilesRef.current(files) }), [])
   function move(from: number, to: number) {
     if (busy || to < 0 || to >= drafts.length) return
     setDrafts(values => { const next = [...values]; const [item] = next.splice(from, 1); next.splice(to, 0, item); return next })
@@ -130,14 +140,22 @@ export default function Submit() {
   }
   return <><PageHeader title="提交打印" subtitle={<span className="submit-statistics"><span>访问次数 {totals?.visit_count ?? '—'}</span><span>累计打印 {totals?.print_total_pages ?? '—'} 页</span></span>} /><ErrorNotification error={options.error ?? visit.error ?? statistics.error} /><div className="submit-layout">
     <button type="button" className="upload-zone" disabled={busy || !options.data} onClick={() => picker.current?.click()}>
-      <span className="upload-icon-circle"><Upload size={42} /></span><strong>选择文件</strong><small className="upload-formats">PDF、Word、Excel、PPT、图片、TXT</small>
+      <span className="upload-icon-circle"><Upload size={42} /></span><strong>选择文件</strong><span className="upload-drag-hint">或拖放文件到页面任意位置</span><small className="upload-formats">PDF、Word、Excel、PPT、图片、TXT</small>
     </button><input ref={picker} type="file" hidden multiple accept=".pdf,.png,.jpg,.jpeg,.bmp,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e => { void addFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />
     <aside className="submission-sidebar"><div className="submission-toolbar"><div><span>文件数 <strong>{drafts.length}</strong></span><span>总页数 <strong>{pages}</strong></span></div>
       <button className="button button-primary" disabled={!prepared.length || busy || hasPending} onClick={() => void submit()}><Send size={16} />{busy ? '提交中' : '打印'}</button></div>
       <div className="upload-list"><AnimatePresence initial={false}>{drafts.map((draft, index) => <FileCard key={draft.uid} draft={draft} maxCopies={options.data?.max_copies ?? 20}
         update={changes => update(draft.uid, changes)} remove={() => { setDrafts(values => values.filter(d => d.uid !== draft.uid)); notify('文件已移除') }} move={offset => move(index, index + offset)} first={index === 0} last={index === drafts.length - 1}
         preview={() => setPreviewUid(draft.uid)} disabled={busy} />)}</AnimatePresence>{!drafts.length && <p className="empty-upload-list">尚未添加文件</p>}</div>
-    </aside></div><Preview planId={previewDraft && isPrepared(previewDraft) ? previewDraft.plan!.id : null} open={!!previewDraft} close={() => setPreviewUid(null)} /></>
+    </aside></div><Preview planId={previewDraft && isPrepared(previewDraft) ? previewDraft.plan!.id : null} open={!!previewDraft} close={() => setPreviewUid(null)} />
+    {createPortal(<AnimatePresence>{draggingFiles && <motion.div className="file-drop-overlay" role="status" aria-live="polite"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .12 }}>
+      <div className="file-drop-frame"><div className="file-drop-content"><span className="file-drop-icon"><Upload size={54} strokeWidth={1.5} /></span>
+        <span className="file-drop-eyebrow">提交打印</span><strong>{busy ? '正在提交，请稍候' : !options.data ? '正在连接，请稍候' : '松手上传'}</strong>
+        <p>{busy || !options.data ? '准备完成后即可继续拖放文件' : '拖到这里就好，支持一次上传多个文件'}</p>
+        <span className="file-drop-formats">PDF、Word、Excel、PPT、图片、TXT</span>
+      </div></div></motion.div>}</AnimatePresence>, document.body)}
+    </>
 }
 
 function FileCard({ draft, maxCopies, update, remove, move, first, last, preview, disabled }: {

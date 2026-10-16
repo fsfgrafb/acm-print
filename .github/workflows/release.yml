@@ -45,6 +45,8 @@ jobs:
           npm ci
           if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
           npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed' }
+          npm run test:file-drop
       - name: Install build dependencies
         run: |
           python -m pip install -r requirements.lock -r requirements-build.lock
