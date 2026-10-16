@@ -63,10 +63,6 @@ try {
         $PgBin = Split-Path -Parent $dumpProgram
     }
     if (-not (Test-Path -LiteralPath $dumpProgram -PathType Leaf)) { throw '找不到 pg_dump.exe。' }
-    $checksumPath = $archive + '.sha256'
-    if (-not (Test-Path -LiteralPath $checksumPath)) { throw '缺少发布包同目录的 .zip.sha256 校验文件。' }
-    $checksum = ((Get-Content -LiteralPath $checksumPath -Raw).Trim() -split '\s+')[0]
-    if ($checksum -notmatch '^[0-9a-fA-F]{64}$' -or (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $checksum) { throw '发布包 SHA-256 校验失败。' }
     $backup = Join-Path $runtime ('updates\' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
     $stage = Join-Path $backup 'package'
     New-Item -ItemType Directory -Path $stage -Force | Out-Null

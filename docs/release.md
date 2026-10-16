@@ -32,7 +32,7 @@ $env:PLATFORM_DATABASE_URL = 'postgresql+psycopg://platform:your-password@127.0.
 .\print-platform.exe transfer --student-id 0001
 ```
 
-更新推荐使用发布包中的 `update.ps1`。把新版本 ZIP 与其 `.zip.sha256` 文件放在同一个目录，在当前安装目录运行：
+更新推荐使用发布包中的 `update.ps1`。准备好新版本 ZIP 文件，在当前安装目录运行：
 
 ```powershell
 .\update.ps1 -Package 'C:\Downloads\print-platform-v1.2.3-windows-x64.zip' -PgBin 'C:\Program Files\PostgreSQL\17\bin'
@@ -46,7 +46,7 @@ $env:PLATFORM_DATABASE_URL = 'postgresql+psycopg://platform:your-password@127.0.
 & 'C:\Downloads\print-platform-new\update.ps1' -InstallPath 'C:\apps\print-platform' -Package 'C:\Downloads\print-platform-v1.2.3-windows-x64.zip' -PgBin 'C:\Program Files\PostgreSQL\17\bin'
 ```
 
-脚本会校验包的 SHA-256、目录结构、已有迁移文件和新程序依赖，确认没有提交中、打印中或取消中的任务，然后停止四个进程，再次检查任务并备份数据库、程序、配置和存储。排队中任务保留，启动后继续处理。数据库备份失败时不替换程序。更新时保留整个 `config` 和 `var`，清除旧程序文件后复制新版，自动执行迁移、启动，再检查数据库就绪接口与四个进程。默认健康检查时限为 60 秒，可通过 `-HealthTimeoutSeconds` 修改。
+脚本会检查包的目录结构、已有迁移文件和新程序依赖，确认没有提交中、打印中或取消中的任务，然后停止四个进程，再次检查任务并备份数据库、程序、配置和存储。排队中任务保留，启动后继续处理。数据库备份失败时不替换程序。更新时保留整个 `config` 和 `var`，清除旧程序文件后复制新版，自动执行迁移、启动，再检查数据库就绪接口与四个进程。默认健康检查时限为 60 秒，可通过 `-HealthTimeoutSeconds` 修改。
 
 安装目录内的文件存储必须位于 `var` 子目录；安装目录外的绝对存储路径也会单独备份。含目录链接的安装或存储布局不支持自动更新。不要在更新期间通过其他终端启动平台。更新后登录自启会重新启用。
 

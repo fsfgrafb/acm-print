@@ -52,6 +52,4 @@ $archive = Join-Path $output $name
 if (Test-Path -LiteralPath $archive) { throw "产物已存在，请勿覆盖：$archive" }
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 [System.IO.Compression.ZipFile]::CreateFromDirectory($stage, $archive)
-$hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-"$hash  $name" | Set-Content -LiteralPath ($archive + '.sha256') -Encoding ascii
 Write-Host "Release package: $archive"

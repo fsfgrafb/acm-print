@@ -43,7 +43,7 @@ export default function Queue() {
     {status && <div className="device-banner"><span className={'device-icon device-' + (status.paused ? 'paused' : deviceFault ? 'fault' : 'ready')}><Printer size={22} /></span>
       <div><strong>{status.paused ? '应用队列已暂停' : status.device.message}</strong>
         </div>
-      {user.admin && <button className="button" disabled={busy} onClick={() => void action('/admin/queue/' + (status.paused ? 'resume' : 'pause'), '队列状态已更新')}>
+      {user.admin && <button className="button button-small" disabled={busy} onClick={() => void action('/admin/queue/' + (status.paused ? 'resume' : 'pause'), '队列状态已更新')}>
         {status.paused ? <Play size={15} /> : <Pause size={15} />}{status.paused ? '恢复队列' : '暂停队列'}
       </button>}
     </div>}
@@ -64,7 +64,7 @@ function QueueSection({ title, data, pending, error, page, setPage, busy, previe
     <ErrorNotification error={error} />
     {pending ? <div className="panel loading" role="status">加载中</div> : data && (
       data.items.length ? <div className="queue-list"><AnimatePresence initial={false}>
-        {data.items.map(task => <TaskCard key={task.id} task={task} history={title === '历史记录'} contact={data.admin_contact} busy={busy} preview={preview} action={action} />)}
+        {data.items.map(task => <TaskCard key={task.id} task={task} contact={data.admin_contact} busy={busy} preview={preview} action={action} />)}
       </AnimatePresence></div> : <div className="queue-empty">{title === '当前任务' ? '空闲' : '暂无记录'}</div>
     )}
     {(page > 1 || data?.has_more) && <div className="pagination" aria-label={title + '分页'}>
@@ -75,12 +75,11 @@ function QueueSection({ title, data, pending, error, page, setPage, busy, previe
   </section>
 }
 
-function TaskCard({ task, history, contact, busy, preview, action }: {
-  history: boolean;
+function TaskCard({ task, contact, busy, preview, action }: {
   contact?: QueueData['admin_contact'];
   task: QueueItem; busy: boolean; preview: (plan: string) => void; action: (path: string, message: string) => Promise<void>;
 }) {
-  const { user, branding, notify } = useApp()
+  const { notify } = useApp()
   useEffect(() => {
     if (task.state === 'unknown' || task.state === 'failed') notify(`${labels[task.state]}，${adminContactText(contact)}`, true)
   }, [task.state, contact?.email, contact?.phone, notify])
@@ -93,19 +92,19 @@ function TaskCard({ task, history, contact, busy, preview, action }: {
   }
   return <motion.article layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -8 }} transition={{ duration: .18 }} className={'task-card' + (task.mine ? ' task-card-mine' : '')}>
-    <div className="task-main">{history ? <button type="button" className={'task-symbol task-preview ' + (task.state === 'unknown' ? 'warning' : '')}
-      title={task.plan_id ? '预览' : '暂无预览'} aria-label={task.plan_id ? '预览' : '暂无预览'} disabled={!task.plan_id}
-      onClick={() => { if (task.plan_id) preview(task.plan_id) }}><Eye size={21} /></button>
+    <div className="task-main">{task.plan_id ? <button type="button" className="icon-button preview-upload"
+      title="预览" aria-label="预览"
+      onClick={() => preview(task.plan_id!)}><Eye size={19} /></button>
       : <span className={'task-symbol ' + (task.state === 'unknown' ? 'warning' : '')}><Printer size={21} /></span>}
-      <div><div className="task-heading"><strong>{task.filename ?? branding.identity_label + ' ' + task.student_id}</strong>
+      <div><div className="task-heading"><strong>{task.student_id} 的打印任务</strong>
         </div>
-        <p>{user.admin && `${branding.identity_label} ${task.student_id} · `}{time(task.created_at)} · {task.total_pages} 页</p>
       </div><span className={'status-pill ' + (task.state === 'unknown' ? 'warning' : task.state === 'failed' ? 'danger' : task.state === 'queue_ended' ? 'success' : ['submitting', 'submitted', 'printing', 'cancelling'].includes(task.state) ? 'info' : '')}>
         {labels[task.state] ?? task.state}
       </span>
     </div>
-    {(task.can_cancel || task.can_download || (!history && task.plan_id)) && <div className="task-actions">
-      {!history && task.plan_id && <button onClick={() => preview(task.plan_id!)}><Eye size={15} />预览</button>}
+    <div className="task-footer">
+      <div className="task-metadata"><time dateTime={task.created_at}>{time(task.created_at)}</time><span>{task.total_pages} 页</span></div>
+      {(task.can_cancel || task.can_download) && <div className="task-actions">
       {task.can_download && <><button disabled={downloading} onClick={() => void download('original')}><Download size={15} />下载原文件</button>
         <button disabled={downloading} onClick={() => void download('pdf')}><Download size={15} />下载渲染PDF</button>
         <button onClick={() => navigate('/submit', { state: { taskId: task.id } })}><RotateCcw size={15} />再次打印</button></>}
@@ -113,6 +112,7 @@ function TaskCard({ task, history, contact, busy, preview, action }: {
         if (task.state === 'queued' || window.confirm('已出纸的部分无法撤回，是否请求取消？'))
           void action('/tasks/' + task.id + '/cancel', '取消请求已记录，请查看任务状态')
       }}><X size={15} />取消任务</button>}
-    </div>}
+      </div>}
+    </div>
   </motion.article>
 }

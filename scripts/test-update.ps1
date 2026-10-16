@@ -54,7 +54,7 @@ $savedDatabase = $env:PLATFORM_DATABASE_URL
 $savedMode = $env:UPDATE_TEST_MODE
 try {
     $env:PLATFORM_DATABASE_URL = 'postgresql+psycopg://test:test@localhost/test'
-    foreach ($mode in @('success', 'checksum', 'migration', 'busy', 'backup', 'replacement', 'startup', 'health')) {
+    foreach ($mode in @('success', 'migration', 'busy', 'backup', 'replacement', 'startup', 'health')) {
         $case = Join-Path $workspace $mode
         $install = Join-Path $case 'installed'
         $package = Join-Path $case 'new'
@@ -75,9 +75,6 @@ try {
         Set-Content -LiteralPath (Join-Path $install 'var\storage\document.pdf') -Value 'user-data'
         $zipPath = Join-Path $case 'release.zip'
         Compress-Archive -Path (Join-Path $package '*') -DestinationPath $zipPath
-        $hash = (Get-FileHash -LiteralPath $zipPath).Hash
-        if ($mode -eq 'checksum') { $hash = '0' * 64 }
-        Set-Content -LiteralPath ($zipPath + '.sha256') -Value "$hash  release.zip"
         $pgBin = Join-Path $case 'pg'
         New-Item -ItemType Directory -Path $pgBin | Out-Null
         Set-Content -LiteralPath (Join-Path $pgBin 'pg_dump.exe') -Value 'fixture'

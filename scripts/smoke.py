@@ -86,9 +86,15 @@ assert expect(member.post("/api/print-batches", json=batch))["batch_id"] == firs
 batch["items"][0]["copies"] = 1
 expect(member.post("/api/print-batches", json=batch), 409)
 task = expect(member.get("/api/queue"))["items"][0]
-assert task["total_pages"] == 6 and "filename" not in task and "plan_id" not in task
+assert task["total_pages"] == 6 and task["filename"] == "private.pdf" and task["plan_id"] == plan["id"]
+assert member.get("/api/render-plans/" + task["plan_id"] + "/pdf").status_code == 200
+assert expect(admin.get("/api/queue"))["items"][0]["plan_id"] == plan["id"]
 other = TestClient(app, headers=origin)
 sign_in(other, "0003")
+other_task = expect(other.get("/api/queue"))["items"][0]
+assert not other_task["mine"] and "filename" not in other_task and "plan_id" not in other_task
+expect(other.get("/api/render-plans/" + plan["id"]), 404)
+expect(other.get("/api/render-plans/" + plan["id"] + "/pdf"), 404)
 expect(other.get("/api/files/" + document["id"]), 404)
 expect(other.post("/api/tasks/" + task["id"] + "/cancel"), 404)
 expect(member.post("/api/tasks/" + task["id"] + "/cancel"))

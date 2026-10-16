@@ -187,7 +187,7 @@ def queue(
             ),
             "can_download": (mine or actor.admin) and task.submitted_at is not None,
         }
-        if actor.admin:
+        if mine or actor.admin:
             item["filename"] = task.filename
             item["plan_id"] = str(plan.id)
         items.append(item)

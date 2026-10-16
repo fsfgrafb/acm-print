@@ -66,7 +66,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $assets = @(Get-ChildItem -LiteralPath var/releases -File | ForEach-Object FullName)
+          $assets = @(Get-ChildItem -LiteralPath var/releases -File -Filter '*.zip' | ForEach-Object FullName)
           $releaseArgs = @('release', 'create', $env:RELEASE_TAG, '--verify-tag', '--generate-notes', '--title', $env:RELEASE_TAG)
           if ($env:RELEASE_TAG.Contains('-')) { $releaseArgs += '--prerelease' }
           gh @releaseArgs @assets
