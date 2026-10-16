@@ -125,6 +125,7 @@ export default function Submit() {
       setDrafts(values => values.filter(d => !prepared.some(p => p.uid === d.uid)))
       retry.current = null
       notify(remaining ? `已提交 ${prepared.length} 个文件，${remaining} 个未提交` : '已提交')
+      navigate('/queue')
     } catch (error) { notify(error as Error, true) } finally { setBusy(false) }
   }
   return <><PageHeader title="提交打印" subtitle={<span className="submit-statistics"><span>访问次数 {totals?.visit_count ?? '—'}</span><span>累计打印 {totals?.print_total_pages ?? '—'} 页</span></span>} /><ErrorNotification error={options.error ?? visit.error ?? statistics.error} /><div className="submit-layout">

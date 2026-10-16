@@ -33,7 +33,7 @@ $example = Get-Content -LiteralPath (Join-Path $projectRoot 'config\platform.exa
 $example.Replace('http://localhost:5173', 'http://localhost') | Set-Content -LiteralPath (Join-Path $stage 'config\platform.example.toml') -Encoding utf8NoBOM
 Copy-Item -LiteralPath (Join-Path $projectRoot '.env.example') -Destination $stage
 Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\release.md') -Destination (Join-Path $stage 'README.md')
-foreach ($scriptName in @('start.ps1', 'stop.ps1')) {
+foreach ($scriptName in @('start.ps1', 'stop.ps1', 'update.ps1')) {
     $scriptText = [System.IO.File]::ReadAllText((Join-Path $projectRoot "scripts\release\$scriptName"), [System.Text.Encoding]::UTF8)
     [System.IO.File]::WriteAllText((Join-Path $stage $scriptName), $scriptText, [System.Text.UTF8Encoding]::new($true))
 }

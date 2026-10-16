@@ -51,7 +51,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed' }
           python -m pip install . --no-deps
       - name: Check Python
-        run: python -m ruff check backend scripts/smoke.py scripts/release-entry.py
+        run: python -m ruff check backend scripts/smoke.py scripts/release-entry.py scripts/test_deployment.py
+      - name: Verify updater
+        shell: pwsh
+        run: |
+          python scripts/test_deployment.py
+          if ($LASTEXITCODE -ne 0) { throw 'Deployment helper tests failed' }
+          ./scripts/test-update.ps1
       - name: Build and verify portable package
         shell: pwsh
         run: ./scripts/build-release.ps1 -Version $env:RELEASE_TAG

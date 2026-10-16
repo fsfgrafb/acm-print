@@ -32,4 +32,33 @@ $env:PLATFORM_DATABASE_URL = 'postgresql+psycopg://platform:your-password@127.0.
 .\print-platform.exe transfer --student-id 0001
 ```
 
-升级前停止进程并备份数据库、配置与存储目录；解压新包后保留原 `config/platform.toml` 与 `var`，再启动以执行版本化迁移。下载包同目录的 `.sha256` 文件可核对 SHA-256。
+更新推荐使用发布包中的 `update.ps1`。把新版本 ZIP 与其 `.zip.sha256` 文件放在同一个目录，在当前安装目录运行：
+
+```powershell
+.\update.ps1 -Package 'C:\Downloads\print-platform-v1.2.3-windows-x64.zip' -PgBin 'C:\Program Files\PostgreSQL\17\bin'
+```
+
+`-PgBin` 指向 PostgreSQL 客户端工具目录，其中的 `pg_dump.exe` 应与数据库服务器主版本一致，或使用支持该服务器的较新版本。若 `pg_dump` 已在 PATH 中可省略。使用原部署的 Windows 用户执行，以读取已保存的数据库连接；也可提前设置 `PLATFORM_DATABASE_URL`。更新会有短暂停机，需要安装目录和备份所需的磁盘空间。
+
+旧安装目录还没有 `update.ps1` 时，先把新 ZIP 解压到安装目录以外的临时目录，再执行其中的脚本，并明确指定原安装目录；`-Package` 仍传完整 ZIP 路径：
+
+```powershell
+& 'C:\Downloads\print-platform-new\update.ps1' -InstallPath 'C:\apps\print-platform' -Package 'C:\Downloads\print-platform-v1.2.3-windows-x64.zip' -PgBin 'C:\Program Files\PostgreSQL\17\bin'
+```
+
+脚本会校验包的 SHA-256、目录结构、已有迁移文件和新程序依赖，确认没有提交中、打印中或取消中的任务，然后停止四个进程，再次检查任务并备份数据库、程序、配置和存储。排队中任务保留，启动后继续处理。数据库备份失败时不替换程序。更新时保留整个 `config` 和 `var`，清除旧程序文件后复制新版，自动执行迁移、启动，再检查数据库就绪接口与四个进程。默认健康检查时限为 60 秒，可通过 `-HealthTimeoutSeconds` 修改。
+
+安装目录内的文件存储必须位于 `var` 子目录；安装目录外的绝对存储路径也会单独备份。含目录链接的安装或存储布局不支持自动更新。不要在更新期间通过其他终端启动平台。更新后登录自启会重新启用。
+
+备份保留在 `var/updates/时间-随机标识/`，不自动删除，包含：
+
+- `database.dump`：PostgreSQL 自定义格式备份。
+- `program/`：更新前的程序和整个配置目录。
+- `var/`：运行目录备份，不包含旧更新备份与更新锁。
+- `storage/`：位于 `var` 之外的文件存储（如有）。
+- `backup.json`：安装路径、存储路径、新版本与备份时间。
+- `status.txt`：完整备份完成后记录的更新阶段；此文件尚未出现时，不应将该目录视为完整恢复点。
+
+替换阶段失败且尚未尝试迁移时，脚本会恢复旧程序并尝试启动。迁移或新版本启动、健康检查失败时，脚本停止新版本并保留现场，不自动降级数据库。数据库迁移后，直接换回旧程序可能不兼容。
+
+需要完整回退时，先确认所有平台进程已停止，另存失败现场，再使用对应备份恢复：使用 PostgreSQL `pg_restore` 将 `database.dump` 恢复到独立的新数据库并检查成功；将 `program/` 恢复到原安装路径，同时恢复 `var/`（不要混入更新后的文件），按照 `backup.json` 恢复外部 `storage/`；设置 `PLATFORM_DATABASE_URL` 指向恢复后的数据库，再执行原安装路径下的 `start.ps1`。恢复会回到备份时刻，更新后新增的数据应先单独保存处理。备份含账号及文件数据，应按原数据目录的权限保管。

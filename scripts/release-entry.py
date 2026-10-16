@@ -14,8 +14,16 @@ def main():
         sub.add_parser(role)
     transfer = sub.add_parser("transfer")
     transfer.add_argument("--student-id", required=True)
+    update = sub.add_parser("update-check")
+    update.add_argument("--install-root", required=True)
+    update.add_argument("--dump-to")
+    update.add_argument("--pg-bin")
     args = parser.parse_args()
-    if args.role == "serve":
+    if args.role == "update-check":
+        from print_platform.deployment import update_check
+
+        update_check(args.install_root, args.dump_to, args.pg_bin)
+    elif args.role == "serve":
         import uvicorn
 
         uvicorn.run("print_platform.main:app", host=args.host, port=args.port)

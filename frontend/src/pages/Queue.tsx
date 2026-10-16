@@ -64,7 +64,7 @@ function QueueSection({ title, data, pending, error, page, setPage, busy, previe
     <ErrorNotification error={error} />
     {pending ? <div className="panel loading" role="status">加载中</div> : data && (
       data.items.length ? <div className="queue-list"><AnimatePresence initial={false}>
-        {data.items.map(task => <TaskCard key={task.id} task={task} contact={data.admin_contact} busy={busy} preview={preview} action={action} />)}
+        {data.items.map(task => <TaskCard key={task.id} task={task} history={title === '历史记录'} contact={data.admin_contact} busy={busy} preview={preview} action={action} />)}
       </AnimatePresence></div> : <div className="queue-empty">{title === '当前任务' ? '空闲' : '暂无记录'}</div>
     )}
     {(page > 1 || data?.has_more) && <div className="pagination" aria-label={title + '分页'}>
@@ -75,7 +75,8 @@ function QueueSection({ title, data, pending, error, page, setPage, busy, previe
   </section>
 }
 
-function TaskCard({ task, contact, busy, preview, action }: {
+function TaskCard({ task, history, contact, busy, preview, action }: {
+  history: boolean;
   contact?: QueueData['admin_contact'];
   task: QueueItem; busy: boolean; preview: (plan: string) => void; action: (path: string, message: string) => Promise<void>;
 }) {
@@ -91,19 +92,22 @@ function TaskCard({ task, contact, busy, preview, action }: {
     catch (err) { notify(err as Error, true) } finally { setDownloading(false) }
   }
   return <motion.article layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -8 }} transition={{ duration: .18 }} className="task-card">
-    <div className="task-main"><span className={'task-symbol ' + (task.state === 'unknown' ? 'warning' : '')}><Printer size={21} /></span>
+    exit={{ opacity: 0, y: -8 }} transition={{ duration: .18 }} className={'task-card' + (task.mine ? ' task-card-mine' : '')}>
+    <div className="task-main">{history ? <button type="button" className={'task-symbol task-preview ' + (task.state === 'unknown' ? 'warning' : '')}
+      title={task.plan_id ? '预览' : '暂无预览'} aria-label={task.plan_id ? '预览' : '暂无预览'} disabled={!task.plan_id}
+      onClick={() => { if (task.plan_id) preview(task.plan_id) }}><Eye size={21} /></button>
+      : <span className={'task-symbol ' + (task.state === 'unknown' ? 'warning' : '')}><Printer size={21} /></span>}
       <div><div className="task-heading"><strong>{task.filename ?? branding.identity_label + ' ' + task.student_id}</strong>
-        {task.mine && <span className="mine-tag">我的任务</span>}</div>
+        </div>
         <p>{user.admin && `${branding.identity_label} ${task.student_id} · `}{time(task.created_at)} · {task.total_pages} 页</p>
       </div><span className={'status-pill ' + (task.state === 'unknown' ? 'warning' : task.state === 'failed' ? 'danger' : task.state === 'queue_ended' ? 'success' : ['submitting', 'submitted', 'printing', 'cancelling'].includes(task.state) ? 'info' : '')}>
         {labels[task.state] ?? task.state}
       </span>
     </div>
-    {(task.can_cancel || task.can_download || task.plan_id) && <div className="task-actions">
-      {task.plan_id && <button onClick={() => preview(task.plan_id!)}><Eye size={15} />预览</button>}
-      {task.can_download && <><button disabled={downloading} onClick={() => void download('original')}><Download size={15} />原件</button>
-        <button disabled={downloading} onClick={() => void download('pdf')}><Download size={15} />打印 PDF</button>
+    {(task.can_cancel || task.can_download || (!history && task.plan_id)) && <div className="task-actions">
+      {!history && task.plan_id && <button onClick={() => preview(task.plan_id!)}><Eye size={15} />预览</button>}
+      {task.can_download && <><button disabled={downloading} onClick={() => void download('original')}><Download size={15} />下载原文件</button>
+        <button disabled={downloading} onClick={() => void download('pdf')}><Download size={15} />下载渲染PDF</button>
         <button onClick={() => navigate('/submit', { state: { taskId: task.id } })}><RotateCcw size={15} />再次打印</button></>}
       {task.can_cancel && <button className="danger-text" disabled={busy} onClick={() => {
         if (task.state === 'queued' || window.confirm('已出纸的部分无法撤回，是否请求取消？'))
