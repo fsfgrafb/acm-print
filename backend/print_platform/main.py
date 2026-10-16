@@ -103,6 +103,14 @@ if (dist / "assets").exists():
     app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
 
 
+@app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
+def favicon():
+    icon = ROOT / "frontend/public" / config().branding.icon_url.lstrip("/")
+    if not icon.is_file():
+        raise AppError("not_found", "图标资源不存在", 404)
+    return FileResponse(icon, headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/{path:path}", include_in_schema=False)
 def frontend(path: str):
     if path.startswith("api/") or not (dist / "index.html").exists():
